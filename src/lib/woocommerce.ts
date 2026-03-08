@@ -1,0 +1,72 @@
+import type { WCProduct, WCCategory, WCOrder, WCOrderPayload, WCShippingMethod, WCVariation } from "./types";
+
+const BASE_URL = process.env.NEXT_PUBLIC_WORDPRESS_URL;
+const CONSUMER_KEY = process.env.WC_CONSUMER_KEY;
+const CONSUMER_SECRET = process.env.WC_CONSUMER_SECRET;
+
+export async function wcFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const url = new URL(`/wp-json/wc/v3${endpoint}`, BASE_URL);
+  url.searchParams.set("consumer_key", CONSUMER_KEY!);
+  url.searchParams.set("consumer_secret", CONSUMER_SECRET!);
+
+  const res = await fetch(url.toString(), {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`WooCommerce API error: ${res.status} ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
+export async function getProducts(params?: {
+  per_page?: number;
+  page?: number;
+  category?: number;
+  search?: string;
+  orderby?: string;
+  order?: "asc" | "desc";
+  modified_after?: string;
+}): Promise<WCProduct[]> {
+  const query = new URLSearchParams();
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) query.set(key, String(value));
+    });
+  }
+  const queryStr = query.toString() ? `&${query.toString()}` : "";
+  return wcFetch<WCProduct[]>(`/products?${queryStr}`);
+}
+
+export async function getProduct(slugOrId: string | number): Promise<WCProduct> {
+  if (typeof slugOrId === "number") {
+    return wcFetch<WCProduct>(`/products/${slugOrId}`);
+  }
+  const products = await wcFetch<WCProduct[]>(`/products?slug=${slugOrId}`);
+  if (!products.length) throw new Error(`Product not found: ${slugOrId}`);
+  return products[0];
+}
+
+export async function getCategories(): Promise<WCCategory[]> {
+  return wcFetch<WCCategory[]>("/products/categories?per_page=100");
+}
+
+export async function getProductVariations(productId: number): Promise<WCVariation[]> {
+  return wcFetch<WCVariation[]>(`/products/${productId}/variations?per_page=100`);
+}
+
+export async function getShippingZoneMethods(zoneId: number): Promise<WCShippingMethod[]> {
+  return wcFetch<WCShippingMethod[]>(`/shipping/zones/${zoneId}/methods`);
+}
+
+export async function createOrder(order: WCOrderPayload): Promise<WCOrder> {
+  return wcFetch<WCOrder>("/orders", {
+    method: "POST",
+    body: JSON.stringify(order),
+  });
+}
