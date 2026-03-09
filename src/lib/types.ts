@@ -2,6 +2,7 @@ export interface WCProduct {
   id: number;
   name: string;
   slug: string;
+  status: "publish" | "draft" | "pending" | "private";
   type: "simple" | "variable" | "grouped" | "external";
   permalink: string;
   description: string;
@@ -97,12 +98,24 @@ export interface WCOrder {
   }[];
 }
 
+export interface WCShippingZone {
+  id: number;
+  name: string;
+  order: number;
+}
+
 export interface WCShippingMethod {
   id: number;
+  instance_id: number;
   method_id: string;
   method_title: string;
+  method_description: string;
+  enabled: boolean;
   settings: {
+    title?: { value: string };
     cost?: { value: string };
+    min_amount?: { value: string };
+    requires?: { value: string };
   };
 }
 
@@ -111,6 +124,7 @@ export interface Product {
   id: number;
   name: string;
   slug: string;
+  status: string;
   type: "simple" | "variable" | "grouped" | "external";
   description: string;
   short_description: string;
@@ -155,6 +169,8 @@ export interface SyncState {
   last_synced_at: string | null;
   status: "idle" | "syncing" | "error";
   products_synced: number;
+  products_total: number | null;
+  sync_phase: "fetching" | "images" | "writing" | null;
   errors: string | null;
   started_at: string | null;
   completed_at: string | null;

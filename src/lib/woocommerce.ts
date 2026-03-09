@@ -1,4 +1,4 @@
-import type { WCProduct, WCCategory, WCOrder, WCOrderPayload, WCShippingMethod, WCVariation } from "./types";
+import type { WCProduct, WCCategory, WCOrder, WCOrderPayload, WCShippingZone, WCShippingMethod, WCVariation } from "./types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_WORDPRESS_URL;
 const CONSUMER_KEY = process.env.WC_CONSUMER_KEY;
@@ -43,6 +43,35 @@ export async function getProducts(params?: {
   return wcFetch<WCProduct[]>(`/products?${queryStr}`);
 }
 
+/** Like getProducts but also returns total count and pages from WC headers */
+export async function getProductsPage(params?: Record<string, string | number>): Promise<{
+  products: WCProduct[];
+  total: number;
+  totalPages: number;
+}> {
+  const url = new URL("/wp-json/wc/v3/products", BASE_URL);
+  url.searchParams.set("consumer_key", CONSUMER_KEY!);
+  url.searchParams.set("consumer_secret", CONSUMER_SECRET!);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) url.searchParams.set(key, String(value));
+    });
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`WooCommerce API error: ${res.status} ${res.statusText}`);
+  }
+
+  const products: WCProduct[] = await res.json();
+  const total = parseInt(res.headers.get("x-wp-total") || "0", 10);
+  const totalPages = parseInt(res.headers.get("x-wp-totalpages") || "1", 10);
+
+  return { products, total, totalPages };
+}
+
 export async function getProduct(slugOrId: string | number): Promise<WCProduct> {
   if (typeof slugOrId === "number") {
     return wcFetch<WCProduct>(`/products/${slugOrId}`);
@@ -58,6 +87,10 @@ export async function getCategories(): Promise<WCCategory[]> {
 
 export async function getProductVariations(productId: number): Promise<WCVariation[]> {
   return wcFetch<WCVariation[]>(`/products/${productId}/variations?per_page=100`);
+}
+
+export async function getShippingZones(): Promise<WCShippingZone[]> {
+  return wcFetch<WCShippingZone[]>("/shipping/zones");
 }
 
 export async function getShippingZoneMethods(zoneId: number): Promise<WCShippingMethod[]> {
