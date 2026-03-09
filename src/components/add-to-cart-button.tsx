@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/lib/cart-store";
 import { VariationPicker } from "./variation-picker";
-import { storeConfig } from "../../store.config";
+import { formatPrice } from "@/lib/format";
 import type { Product, ProductVariation, WCAttribute } from "@/lib/types";
 
 interface Props {
@@ -15,7 +15,6 @@ interface Props {
 export function AddToCartButton({ product, attributes }: Props) {
   const addItem = useCartStore((s) => s.addItem);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
-  const sym = storeConfig.currencySymbol;
 
   const handleVariationChange = useCallback((variation: ProductVariation | null) => {
     setSelectedVariation(variation);
@@ -45,7 +44,7 @@ export function AddToCartButton({ product, attributes }: Props) {
       )}
 
       {isVariable && selectedVariation && (
-        <p className="text-2xl font-bold">{sym}{selectedVariation.price.toFixed(2)}</p>
+        <p className="text-2xl font-bold">{formatPrice(selectedVariation.price)}</p>
       )}
 
       <Button

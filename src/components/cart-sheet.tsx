@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCartStore } from "@/lib/cart-store";
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { storeConfig } from "../../store.config";
+import { formatPrice } from "@/lib/format";
 
 interface CartSheetProps {
   open: boolean;
@@ -16,7 +16,6 @@ interface CartSheetProps {
 
 export function CartSheet({ open, onOpenChange }: CartSheetProps) {
   const { items, updateQuantity, removeItem, total } = useCartStore();
-  const sym = storeConfig.currencySymbol;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -45,7 +44,7 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.product.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {sym}{item.product.price.toFixed(2)}
+                      {formatPrice(item.product.price)}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <Button
@@ -82,7 +81,7 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
             <div className="py-4 space-y-4">
               <div className="flex justify-between font-medium">
                 <span>Total</span>
-                <span>{sym}{total().toFixed(2)}</span>
+                <span>{formatPrice(total())}</span>
               </div>
               <Button className="w-full" asChild onClick={() => onOpenChange(false)}>
                 <Link href="/checkout">Checkout</Link>

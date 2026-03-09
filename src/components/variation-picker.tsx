@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { storeConfig } from "../../store.config";
 import type { ProductVariation, WCAttribute } from "@/lib/types";
 
 interface Props {
@@ -15,8 +14,6 @@ interface Props {
 export function VariationPicker({ productId, attributes, onVariationChange }: Props) {
   const [variations, setVariations] = useState<ProductVariation[] | null>(null);
   const [selected, setSelected] = useState<Record<string, string>>({});
-  const sym = storeConfig.currencySymbol;
-
   // Lazy load variations from cached API
   useEffect(() => {
     fetch(`/api/products/${productId}/variations`)

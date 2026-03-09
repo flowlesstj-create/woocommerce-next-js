@@ -1,7 +1,7 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
-import { storeConfig } from "../../store.config";
+import { formatPrice } from "@/lib/format";
 import type { ShippingOption } from "@/lib/shipping";
 
 interface Props {
@@ -11,8 +11,6 @@ interface Props {
 }
 
 export function ShippingSelector({ options, selected, onSelect }: Props) {
-  const sym = storeConfig.currencySymbol;
-
   return (
     <div>
       <Label className="mb-2 block">Shipping</Label>
@@ -28,7 +26,7 @@ export function ShippingSelector({ options, selected, onSelect }: Props) {
           >
             <span>{option.title}</span>
             <span className="font-medium">
-              {option.cost === 0 ? "Free" : `${sym}${option.cost.toFixed(2)}`}
+              {option.cost === 0 ? "Free" : formatPrice(option.cost)}
             </span>
           </button>
         ))}

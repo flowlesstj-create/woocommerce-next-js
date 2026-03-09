@@ -3,7 +3,7 @@ import { getProductBySlug } from "@/lib/products";
 import { getProductAttributes } from "@/lib/products";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { ImageGallery } from "@/components/image-gallery";
-import { storeConfig } from "../../../../store.config";
+import { formatPrice } from "@/lib/format";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -15,7 +15,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     ? await getProductAttributes(product.id)
     : [];
 
-  const sym = storeConfig.currencySymbol;
   const isVariable = product.type === "variable";
 
   return (
@@ -25,11 +24,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <h1 className="text-3xl font-bold">{product.name}</h1>
         <div className="flex items-center gap-3">
           <span className="text-2xl font-bold">
-            {isVariable ? `From ${sym}${product.price.toFixed(2)}` : `${sym}${product.price.toFixed(2)}`}
+            {isVariable ? `From ${formatPrice(product.price)}` : formatPrice(product.price)}
           </span>
           {product.on_sale && product.regular_price && !isVariable && (
             <span className="text-lg text-muted-foreground line-through">
-              {sym}{product.regular_price.toFixed(2)}
+              {formatPrice(product.regular_price)}
             </span>
           )}
         </div>
