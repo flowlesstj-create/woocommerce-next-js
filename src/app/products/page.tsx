@@ -1,11 +1,25 @@
+import type { Metadata } from "next";
 import { queryProducts, getFilterOptions } from "@/lib/products";
 import { ProductCard } from "@/components/product-card";
 import { ProductFilters } from "@/components/product-filters";
 import { Pagination } from "@/components/pagination";
+import { storeConfig } from "../../../store.config";
 import type { ProductFilter } from "@/lib/types";
 
 interface Props {
   searchParams: Promise<Record<string, string | undefined>>;
+}
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const params = await searchParams;
+  const category = params.category;
+  const search = params.search;
+
+  let title = `Products | ${storeConfig.name}`;
+  if (category) title = `${category} | ${storeConfig.name}`;
+  if (search) title = `Search: ${search} | ${storeConfig.name}`;
+
+  return { title };
 }
 
 export default async function ProductsPage({ searchParams }: Props) {
