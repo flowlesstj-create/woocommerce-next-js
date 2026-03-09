@@ -44,6 +44,29 @@ export async function syncProducts(): Promise<{ synced: number; errors: string |
       totalSynced += products.length;
       page++;
     }
+
+    // After the main sync loop, on full syncs (no modified_after), clean up deleted products
+    if (!lastSyncedAt) {
+      // This is a full sync — get all WC product IDs
+      const allWcIds = new Set<number>();
+      let cleanPage = 1;
+      while (true) {
+        const batch = await getProducts({ per_page: 100, page: cleanPage });
+        if (!batch.length) break;
+        batch.forEach((p) => allWcIds.add(p.id));
+        cleanPage++;
+      }
+
+      // Delete Supabase products not in WC
+      const { data: sbProducts } = await supabaseAdmin.from("products").select("id");
+      const toDelete = (sbProducts || [])
+        .filter((p) => !allWcIds.has(p.id))
+        .map((p) => p.id);
+
+      if (toDelete.length) {
+        await supabaseAdmin.from("products").delete().in("id", toDelete);
+      }
+    }
   } catch (err) {
     syncError = err instanceof Error ? err.message : "Unknown sync error";
   }

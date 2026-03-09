@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { storeConfig } from "../../store.config";
 import type { Product, ProductFilter, WCAttribute } from "./types";
 
 export async function queryProducts(filters: ProductFilter = {}): Promise<{
@@ -57,6 +58,11 @@ export async function queryProducts(filters: ProductFilter = {}): Promise<{
       const ids = attrProducts?.map((r) => r.product_id) || [];
       query = query.in("id", ids.length ? ids : [-1]);
     }
+  }
+
+  // Hide out of stock products if configured
+  if (storeConfig.hideOutOfStock) {
+    query = query.neq("stock_status", "outofstock");
   }
 
   // Sorting

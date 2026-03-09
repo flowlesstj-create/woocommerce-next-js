@@ -51,6 +51,15 @@ export default function AdminPage() {
     setSyncing(false);
   };
 
+  const handleFullResync = async () => {
+    setSyncing(true);
+    // Reset last_synced_at to force full sync
+    await supabase.from("sync_state").update({ last_synced_at: null }).eq("id", 1);
+    await fetch("/api/admin/sync-now", { method: "POST" });
+    await fetchStatus();
+    setSyncing(false);
+  };
+
   const statusBadge = (status: string) => {
     switch (status) {
       case "ok":
@@ -137,9 +146,14 @@ export default function AdminPage() {
             <p className="text-sm text-destructive">Error: {syncState.errors}</p>
           )}
 
-          <Button onClick={handleSync} disabled={syncing}>
-            {syncing ? "Syncing..." : "Sync Now"}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleSync} disabled={syncing}>
+              {syncing ? "Syncing..." : "Sync Now"}
+            </Button>
+            <Button variant="outline" onClick={handleFullResync} disabled={syncing}>
+              Full Re-sync
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
