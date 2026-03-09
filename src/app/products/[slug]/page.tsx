@@ -1,9 +1,8 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getProductBySlug } from "@/lib/products";
 import { getProductAttributes } from "@/lib/products";
 import { AddToCartButton } from "@/components/add-to-cart-button";
-import { Badge } from "@/components/ui/badge";
+import { ImageGallery } from "@/components/image-gallery";
 import { storeConfig } from "../../../../store.config";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -21,21 +20,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   return (
     <div className="grid md:grid-cols-2 gap-8">
-      <div className="aspect-square relative rounded-lg overflow-hidden">
-        {product.images[0] && (
-          <Image
-            src={product.images[0].src}
-            alt={product.images[0].alt || product.name}
-            fill
-            className="object-cover"
-          />
-        )}
-        {product.on_sale && (
-          <Badge className="absolute top-4 right-4" variant="destructive">
-            Sale
-          </Badge>
-        )}
-      </div>
+      <ImageGallery images={product.images} />
       <div className="space-y-4">
         <h1 className="text-3xl font-bold">{product.name}</h1>
         <div className="flex items-center gap-3">
