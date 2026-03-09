@@ -13,6 +13,9 @@ export async function queryProducts(filters: ProductFilter = {}): Promise<{
 
   let query = supabase.from("products").select("*", { count: "exact" });
 
+  // Only show published products on the storefront
+  query = query.eq("status", "publish");
+
   // Full text search
   if (filters.search) {
     query = query.textSearch("fts", filters.search, { type: "websearch" });
@@ -165,6 +168,15 @@ export async function getFilterOptions(): Promise<{
   };
 
   return { categories, attributes, priceRange };
+}
+
+export async function getProductSeo(productId: number) {
+  const { data } = await supabase
+    .from("product_seo")
+    .select("*")
+    .eq("product_id", productId)
+    .single();
+  return data;
 }
 
 export async function getProductAttributes(productId: number): Promise<WCAttribute[]> {
