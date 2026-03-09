@@ -16,6 +16,8 @@ export function ImageGallery({ images }: { images: WCImage[] }) {
           src={images[selected].src}
           alt={images[selected].alt || "Product image"}
           fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          priority
           className="object-cover"
         />
       </div>
@@ -29,7 +31,7 @@ export function ImageGallery({ images }: { images: WCImage[] }) {
                 i === selected ? "border-primary" : "border-transparent hover:border-muted-foreground/30"
               }`}
             >
-              <Image src={img.src} alt={img.alt || ""} fill className="object-cover" />
+              <Image src={img.src} alt={img.alt || ""} fill sizes="64px" className="object-cover" />
             </button>
           ))}
         </div>

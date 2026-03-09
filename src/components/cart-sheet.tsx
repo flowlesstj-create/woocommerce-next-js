@@ -38,6 +38,7 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
                       alt={item.product.images[0].alt || item.product.name}
                       width={64}
                       height={64}
+                      sizes="64px"
                       className="rounded object-cover"
                     />
                   )}
