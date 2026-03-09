@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/header";
 import { CartProvider } from "@/components/cart-provider";
+import { Footer } from "@/components/footer";
 import { storeConfig } from "../../store.config";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <CartProvider>
           <Header />
           <main className="container mx-auto px-4 py-8">{children}</main>
+          <Footer />
         </CartProvider>
       </body>
     </html>
