@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { Product, ProductFilter } from "./types";
+import type { Product, ProductFilter, WCAttribute } from "./types";
 
 export async function queryProducts(filters: ProductFilter = {}): Promise<{
   products: Product[];
@@ -161,18 +161,26 @@ export async function getFilterOptions(): Promise<{
   return { categories, attributes, priceRange };
 }
 
-export async function getProductAttributes(productId: number): Promise<Record<string, string[]>> {
+export async function getProductAttributes(productId: number): Promise<WCAttribute[]> {
   const { data } = await supabase
     .from("product_attributes")
     .select("attribute_name, attribute_value")
     .eq("product_id", productId);
 
-  const attrs: Record<string, string[]> = {};
-  for (const row of data || []) {
-    if (!attrs[row.attribute_name]) {
-      attrs[row.attribute_name] = [];
+  if (!data) return [];
+
+  // Group by attribute name into WCAttribute format
+  const attrMap = new Map<string, string[]>();
+  for (const row of data) {
+    if (!attrMap.has(row.attribute_name)) {
+      attrMap.set(row.attribute_name, []);
     }
-    attrs[row.attribute_name].push(row.attribute_value);
+    attrMap.get(row.attribute_name)!.push(row.attribute_value);
   }
-  return attrs;
+
+  return Array.from(attrMap.entries()).map(([name, options], i) => ({
+    id: i,
+    name,
+    options,
+  }));
 }
