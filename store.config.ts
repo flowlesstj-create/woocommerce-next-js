@@ -31,6 +31,11 @@ export const storeConfig = {
   hideOutOfStock: process.env.NEXT_PUBLIC_HIDE_OUT_OF_STOCK === "true",
 
   // --------------------------------------------------------------------------
+  // Site URL (required for canonical URLs, sitemaps, JSON-LD)
+  // --------------------------------------------------------------------------
+  url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+
+  // --------------------------------------------------------------------------
   // Sync
   // --------------------------------------------------------------------------
   // How often the cron job syncs products from WooCommerce (in minutes).
