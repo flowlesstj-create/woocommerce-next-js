@@ -1,6 +1,7 @@
 import { queryProducts, getFilterOptions } from "@/lib/products";
 import { ProductCard } from "@/components/product-card";
 import { ProductFilters } from "@/components/product-filters";
+import { Pagination } from "@/components/pagination";
 import type { ProductFilter } from "@/lib/types";
 
 interface Props {
@@ -51,6 +52,7 @@ export default async function ProductsPage({ searchParams }: Props) {
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
+        <Pagination total={total} perPage={24} currentPage={filters.page || 1} />
         {products.length === 0 && (
           <p className="text-center text-muted-foreground py-12">
             No products found matching your filters.
