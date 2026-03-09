@@ -11,37 +11,26 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      // WooCommerce default product URLs
-      {
-        source: "/product/:slug",
-        destination: "/products/:slug",
-        permanent: true,
-      },
-      {
-        source: "/product/:slug/",
-        destination: "/products/:slug",
-        permanent: true,
-      },
       // WooCommerce shop page
       {
         source: "/shop",
-        destination: "/products",
+        destination: "/product",
         permanent: true,
       },
       {
         source: "/shop/:path*",
-        destination: "/products/:path*",
+        destination: "/product/:path*",
         permanent: true,
       },
       // WooCommerce category URLs
       {
         source: "/product-category/:slug",
-        destination: "/products?category=:slug",
+        destination: "/product?category=:slug",
         permanent: true,
       },
       {
         source: "/product-category/:slug/",
-        destination: "/products?category=:slug",
+        destination: "/product?category=:slug",
         permanent: true,
       },
     ];

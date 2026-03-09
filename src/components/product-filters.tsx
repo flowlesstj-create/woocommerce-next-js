@@ -24,7 +24,7 @@ export function ProductFilters({ options }: { options: FilterOptions }) {
       params.delete(key);
     }
     params.delete("page");
-    router.push(`/products?${params.toString()}`);
+    router.push(`/product?${params.toString()}`);
   };
 
   const currentCategory = searchParams.get("category");
@@ -137,7 +137,7 @@ export function ProductFilters({ options }: { options: FilterOptions }) {
 
       <Separator />
 
-      <Button variant="outline" className="w-full" onClick={() => router.push("/products")}>
+      <Button variant="outline" className="w-full" onClick={() => router.push("/product")}>
         Clear Filters
       </Button>
     </div>

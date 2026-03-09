@@ -20,10 +20,10 @@ export function Header() {
           {storeConfig.name}
         </Link>
         <nav className="flex items-center gap-6">
-          <Link href="/products" className="text-sm hover:underline">
+          <Link href="/product" className="text-sm hover:underline">
             Products
           </Link>
-          <Link href="/products?search=" className="text-sm hover:underline">
+          <Link href="/product?search=" className="text-sm hover:underline">
             <Search className="h-4 w-4" />
           </Link>
           <Button variant="outline" size="icon" className="relative" onClick={() => setCartOpen(true)}>

@@ -7,7 +7,7 @@ import { formatPrice } from "@/lib/format";
 
 export function ProductCard({ product }: { product: Product }) {
   return (
-    <Link href={`/products/${product.slug}`}>
+    <Link href={`/product/${product.slug}`}>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
         {product.images[0] && (
           <div className="aspect-square relative">
@@ -15,7 +15,10 @@ export function ProductCard({ product }: { product: Product }) {
               src={product.images[0].src}
               alt={product.images[0].alt || product.name}
               fill
-              className="object-cover"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-cover transition-opacity duration-300"
+              placeholder="blur"
+              blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjFmNWY5Ii8+PC9zdmc+"
             />
             {product.on_sale && (
               <Badge className="absolute top-2 right-2" variant="destructive">

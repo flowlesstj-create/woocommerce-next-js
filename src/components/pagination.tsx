@@ -24,7 +24,7 @@ export function Pagination({ total, perPage, currentPage }: Props) {
     } else {
       params.set("page", String(page));
     }
-    router.push(`/products?${params.toString()}`);
+    router.push(`/product?${params.toString()}`);
   };
 
   return (
