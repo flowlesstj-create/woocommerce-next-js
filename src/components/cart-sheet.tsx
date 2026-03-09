@@ -83,9 +83,9 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
                 <span>Total</span>
                 <span>{formatPrice(total())}</span>
               </div>
-              <Button className="w-full" asChild onClick={() => onOpenChange(false)}>
-                <Link href="/checkout">Checkout</Link>
-              </Button>
+              <Link href="/checkout" onClick={() => onOpenChange(false)}>
+                <Button className="w-full">Checkout</Button>
+              </Link>
             </div>
           </>
         )}

@@ -14,9 +14,9 @@ export default async function HomePage() {
         <p className="text-lg text-muted-foreground max-w-md mx-auto">
           {storeConfig.description}
         </p>
-        <Button size="lg" asChild>
-          <Link href="/products">Shop Now</Link>
-        </Button>
+        <Link href="/products">
+          <Button size="lg">Shop Now</Button>
+        </Link>
       </section>
 
       <section>
