@@ -20,6 +20,7 @@ export async function POST(request: Request) {
       supabaseServiceRoleKey,
       stripePublishableKey,
       stripeSecretKey,
+      stripeWebhookSecret,
       adminPassword,
       cronSecret,
     } = body;
@@ -45,6 +46,7 @@ SUPABASE_SERVICE_ROLE_KEY=${supabaseServiceRoleKey}
 # Stripe
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${stripePublishableKey}
 STRIPE_SECRET_KEY=${stripeSecretKey}
+STRIPE_WEBHOOK_SECRET=${stripeWebhookSecret}
 
 # Admin
 ADMIN_PASSWORD=${adminPassword}

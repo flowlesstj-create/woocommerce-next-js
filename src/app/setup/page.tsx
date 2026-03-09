@@ -1,15 +1,39 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, Loader2, AlertCircle, Copy, Check, ArrowLeft, ArrowRight } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  AlertCircle,
+  Copy,
+  Check,
+  ArrowLeft,
+  ArrowRight,
+  Store,
+  Globe,
+  Database,
+  CreditCard,
+  ShieldCheck,
+  Rocket,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 const TOTAL_STEPS = 6;
+
+const STEP_META = [
+  { label: "Store", icon: Store, color: "bg-sky-50 text-sky-600" },
+  { label: "WooCommerce", icon: Globe, color: "bg-purple-50 text-purple-600" },
+  { label: "Database", icon: Database, color: "bg-emerald-50 text-emerald-600" },
+  { label: "Payments", icon: CreditCard, color: "bg-violet-50 text-violet-600" },
+  { label: "Security", icon: ShieldCheck, color: "bg-amber-50 text-amber-600" },
+  { label: "Launch", icon: Rocket, color: "bg-sky-50 text-sky-600" },
+];
 
 const CURRENCY_OPTIONS = [
   { value: "GBP", label: "GBP - British Pound", symbol: "\u00a3" },
@@ -29,6 +53,36 @@ interface StepStatus {
   woocommerce: TestStatus;
   supabase: TestStatus;
   stripe: TestStatus;
+}
+
+function StatusFeedback({
+  status,
+  successMessage,
+  errorMessage,
+  children,
+}: {
+  status: TestStatus;
+  successMessage?: string;
+  errorMessage?: string;
+  children?: React.ReactNode;
+}) {
+  if (status === "success" && (successMessage || children)) {
+    return (
+      <div className="flex items-start gap-2 rounded-lg bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+        <div>{successMessage || children}</div>
+      </div>
+    );
+  }
+  if (status === "error" && errorMessage) {
+    return (
+      <div className="flex items-start gap-2 rounded-lg bg-rose-50 px-3.5 py-2.5 text-sm text-rose-600">
+        <AlertCircle className="mt-0.5 size-4 shrink-0" />
+        {errorMessage}
+      </div>
+    );
+  }
+  return null;
 }
 
 export default function SetupPage() {
@@ -64,11 +118,14 @@ export default function SetupPage() {
   // Step 4: Stripe
   const [stripePublishableKey, setStripePublishableKey] = useState("");
   const [stripeSecretKey, setStripeSecretKey] = useState("");
+  const [stripeWebhookSecret, setStripeWebhookSecret] = useState("");
   const [stripeMode, setStripeMode] = useState<"test" | "live" | null>(null);
   const [stripeError, setStripeError] = useState("");
 
   // Step 5: Admin
   const [adminPassword, setAdminPassword] = useState("");
+  const [adminPasswordConfirm, setAdminPasswordConfirm] = useState("");
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [cronSecret, setCronSecret] = useState("");
 
   // Step 6: Save & Import
@@ -78,15 +135,39 @@ export default function SetupPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ synced: number } | null>(null);
   const [importError, setImportError] = useState("");
+  const [importProgress, setImportProgress] = useState<{
+    phase: string | null;
+    synced: number;
+    total: number;
+  } | null>(null);
 
   const currencySymbol = CURRENCY_OPTIONS.find((c) => c.value === currency)?.symbol || "\u00a3";
 
-  // Auto-set locale when currency changes
+  // Poll sync_state during import for progress
+  const importSupabase = useMemo(() => {
+    if (!supabaseUrl || !supabaseServiceRoleKey) return null;
+    return createClient(supabaseUrl, supabaseServiceRoleKey);
+  }, [supabaseUrl, supabaseServiceRoleKey]);
+
+  useEffect(() => {
+    if (!importing || !importSupabase) return;
+    const interval = setInterval(async () => {
+      const { data } = await importSupabase.from("sync_state").select("*").eq("id", 1).single();
+      if (data) {
+        setImportProgress({
+          phase: data.sync_phase,
+          synced: data.products_synced || 0,
+          total: data.products_total || 0,
+        });
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [importing, importSupabase]);
+
   useEffect(() => {
     setLocale(LOCALE_OPTIONS[currency] || "en-GB");
   }, [currency]);
 
-  // Generate a random cron secret on mount
   useEffect(() => {
     setCronSecret(
       Array.from(crypto.getRandomValues(new Uint8Array(24)))
@@ -95,7 +176,6 @@ export default function SetupPage() {
     );
   }, []);
 
-  // Load migration SQL when reaching step 3
   const loadMigration = useCallback(async () => {
     if (migrationSql) return;
     try {
@@ -103,7 +183,7 @@ export default function SetupPage() {
       const data = await res.json();
       if (data.sql) setMigrationSql(data.sql);
     } catch {
-      // Ignore - user can still proceed
+      // Ignore
     }
   }, [migrationSql]);
 
@@ -218,6 +298,7 @@ export default function SetupPage() {
           supabaseServiceRoleKey,
           stripePublishableKey,
           stripeSecretKey,
+          stripeWebhookSecret,
           adminPassword,
           cronSecret,
         }),
@@ -265,51 +346,101 @@ export default function SetupPage() {
 
   function StatusIcon({ status }: { status: TestStatus }) {
     if (status === "testing") return <Loader2 className="size-4 animate-spin text-muted-foreground" />;
-    if (status === "success") return <CheckCircle2 className="size-4 text-green-600" />;
-    if (status === "error") return <AlertCircle className="size-4 text-red-500" />;
+    if (status === "success") return <CheckCircle2 className="size-4 text-emerald-600" />;
+    if (status === "error") return <AlertCircle className="size-4 text-rose-500" />;
     return null;
   }
 
   function StepIndicator() {
     return (
-      <div className="flex items-center gap-2 mb-6">
-        {Array.from({ length: TOTAL_STEPS }, (_, i) => {
-          const stepNum = i + 1;
-          const isActive = stepNum === step;
-          const isCompleted = stepNum < step;
-          return (
-            <div key={stepNum} className="flex items-center gap-2">
-              {i > 0 && <div className={`h-px w-6 ${isCompleted ? "bg-green-500" : "bg-border"}`} />}
-              <button
-                type="button"
-                onClick={() => setStep(stepNum)}
-                className={`flex size-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : isCompleted
-                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                      : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {isCompleted ? <Check className="size-4" /> : stepNum}
-              </button>
-            </div>
-          );
-        })}
-        <span className="ml-2 text-sm text-muted-foreground">
-          Step {step} of {TOTAL_STEPS}
-        </span>
+      <div className="mb-8">
+        <div className="flex items-start">
+          {STEP_META.map((meta, i) => {
+            const stepNum = i + 1;
+            const isActive = stepNum === step;
+            const isCompleted = stepNum < step;
+            return (
+              <React.Fragment key={stepNum}>
+                {i > 0 && (
+                  <div className="mt-4 flex-1 px-1">
+                    <div
+                      className={`h-0.5 rounded-full transition-colors ${
+                        isCompleted ? "bg-sky-500" : "bg-border"
+                      }`}
+                    />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setStep(stepNum)}
+                  className="flex flex-col items-center gap-1.5"
+                >
+                  <div
+                    className={`flex size-8 items-center justify-center rounded-full text-sm font-medium transition-all ${
+                      isActive
+                        ? "bg-sky-500 text-white ring-4 ring-sky-500/20"
+                        : isCompleted
+                          ? "bg-sky-500 text-white"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {isCompleted ? <Check className="size-4" /> : stepNum}
+                  </div>
+                  <span
+                    className={`hidden text-xs font-medium sm:block ${
+                      isActive
+                        ? "text-sky-600"
+                        : isCompleted
+                          ? "text-foreground"
+                          : "text-muted-foreground"
+                    }`}
+                  >
+                    {meta.label}
+                  </span>
+                </button>
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
+    );
+  }
+
+  function StepHeader({
+    stepIndex,
+    title,
+    description,
+    statusKey,
+  }: {
+    stepIndex: number;
+    title: string;
+    description: string;
+    statusKey?: keyof StepStatus;
+  }) {
+    const meta = STEP_META[stepIndex];
+    const Icon = meta.icon;
+    return (
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${meta.color}`}>
+            <Icon className="size-5" />
+          </div>
+          <div className="flex-1">
+            <CardTitle className="flex items-center gap-2">
+              {title}
+              {statusKey && <StatusIcon status={stepStatus[statusKey]} />}
+            </CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
     );
   }
 
   function renderStep1() {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Store Details</CardTitle>
-          <CardDescription>Basic information about your store</CardDescription>
-        </CardHeader>
+        <StepHeader stepIndex={0} title="Store Details" description="Basic information about your store" />
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="storeName">Store Name</Label>
@@ -361,13 +492,12 @@ export default function SetupPage() {
   function renderStep2() {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            WooCommerce Connection
-            <StatusIcon status={stepStatus.woocommerce} />
-          </CardTitle>
-          <CardDescription>Connect to your WordPress/WooCommerce store</CardDescription>
-        </CardHeader>
+        <StepHeader
+          stepIndex={1}
+          title="WooCommerce"
+          description="Connect to your WordPress store"
+          statusKey="woocommerce"
+        />
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="wordpressUrl">WordPress URL</Label>
@@ -405,12 +535,11 @@ export default function SetupPage() {
             {stepStatus.woocommerce === "testing" && <Loader2 className="size-4 animate-spin" />}
             Test Connection
           </Button>
-          {stepStatus.woocommerce === "success" && (
-            <p className="text-sm text-green-600">
-              Connected successfully! Found {wcProductCount} product{wcProductCount !== 1 ? "s" : ""}.
-            </p>
-          )}
-          {wcError && <p className="text-sm text-red-500">{wcError}</p>}
+          <StatusFeedback
+            status={stepStatus.woocommerce}
+            successMessage={`Connected! Found ${wcProductCount} product${wcProductCount !== 1 ? "s" : ""}.`}
+            errorMessage={wcError}
+          />
         </CardContent>
       </Card>
     );
@@ -419,13 +548,12 @@ export default function SetupPage() {
   function renderStep3() {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Supabase Connection
-            <StatusIcon status={stepStatus.supabase} />
-          </CardTitle>
-          <CardDescription>Connect to your Supabase project for product caching</CardDescription>
-        </CardHeader>
+        <StepHeader
+          stepIndex={2}
+          title="Supabase"
+          description="Connect your database for product caching"
+          statusKey="supabase"
+        />
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="supabaseUrl">Supabase URL</Label>
@@ -464,42 +592,46 @@ export default function SetupPage() {
             Test Connection
           </Button>
           {stepStatus.supabase === "success" && (
-            <div className="space-y-2">
-              <p className="text-sm text-green-600">Connected successfully!</p>
+            <div className="space-y-3">
+              <StatusFeedback status="success" successMessage="Connected successfully!" />
               {hasSchema ? (
-                <Badge variant="secondary">Schema detected - migration already applied</Badge>
+                <div className="flex items-center gap-2 rounded-lg bg-sky-50 px-3.5 py-2.5 text-sm text-sky-700">
+                  <CheckCircle2 className="size-4 shrink-0" />
+                  Schema detected &mdash; migration already applied
+                </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">Schema not found</Badge>
-                    <span className="text-sm text-muted-foreground">
-                      Run this migration in the Supabase SQL Editor:
-                    </span>
+                  <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3.5 py-2.5 text-sm text-amber-700">
+                    <AlertCircle className="size-4 shrink-0" />
+                    Schema not found. Run this migration in the Supabase SQL Editor:
                   </div>
                   {migrationSql && (
-                    <div className="relative">
-                      <Button
-                        onClick={copySql}
-                        variant="outline"
-                        size="sm"
-                        className="absolute right-2 top-2 z-10"
-                      >
-                        {copiedSql ? <Check className="size-3" /> : <Copy className="size-3" />}
-                        {copiedSql ? "Copied" : "Copy"}
-                      </Button>
-                      <pre className="max-h-64 overflow-auto rounded-lg bg-muted p-4 text-xs leading-relaxed">
+                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-950">
+                      <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2">
+                        <span className="text-xs text-slate-400">SQL Migration</span>
+                        <Button
+                          onClick={copySql}
+                          variant="ghost"
+                          size="xs"
+                          className="text-slate-400 hover:text-white hover:bg-slate-800"
+                        >
+                          {copiedSql ? <Check className="size-3" /> : <Copy className="size-3" />}
+                          {copiedSql ? "Copied" : "Copy"}
+                        </Button>
+                      </div>
+                      <pre className="max-h-64 overflow-auto p-4 text-xs leading-relaxed text-slate-50">
                         {migrationSql}
                       </pre>
                     </div>
                   )}
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     After running the migration, click &quot;Test Connection&quot; again to verify.
                   </p>
                 </div>
               )}
             </div>
           )}
-          {supabaseError && <p className="text-sm text-red-500">{supabaseError}</p>}
+          <StatusFeedback status={stepStatus.supabase} errorMessage={supabaseError} />
         </CardContent>
       </Card>
     );
@@ -508,13 +640,12 @@ export default function SetupPage() {
   function renderStep4() {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Stripe Payments
-            <StatusIcon status={stepStatus.stripe} />
-          </CardTitle>
-          <CardDescription>Connect Stripe for payment processing</CardDescription>
-        </CardHeader>
+        <StepHeader
+          stepIndex={3}
+          title="Stripe"
+          description="Connect Stripe for payment processing"
+          statusKey="stripe"
+        />
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="stripePublishableKey">Publishable Key</Label>
@@ -535,6 +666,30 @@ export default function SetupPage() {
               placeholder="sk_test_xxxxx"
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="stripeWebhookSecret">Webhook Secret</Label>
+            <Input
+              id="stripeWebhookSecret"
+              type="password"
+              value={stripeWebhookSecret}
+              onChange={(e) => setStripeWebhookSecret(e.target.value)}
+              placeholder="whsec_xxxxx"
+            />
+            <p className="text-xs text-muted-foreground">
+              Create a webhook in{" "}
+              <a
+                href="https://dashboard.stripe.com/webhooks"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-foreground"
+              >
+                Stripe Dashboard → Developers → Webhooks
+              </a>
+              . Set the endpoint URL to <code className="rounded bg-muted px-1 py-0.5">your-domain.com/api/webhooks/stripe</code> and
+              listen for <code className="rounded bg-muted px-1 py-0.5">checkout.session.completed</code>.
+              Copy the signing secret here.
+            </p>
+          </div>
           <Button
             onClick={testStripe}
             disabled={!stripePublishableKey || !stripeSecretKey || stepStatus.stripe === "testing"}
@@ -544,39 +699,88 @@ export default function SetupPage() {
             Test Connection
           </Button>
           {stepStatus.stripe === "success" && (
-            <p className="text-sm text-green-600">
-              Connected successfully!{" "}
-              <Badge variant={stripeMode === "live" ? "default" : "secondary"}>
+            <StatusFeedback status="success">
+              Connected!{" "}
+              <span
+                className={`ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                  stripeMode === "live"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-amber-100 text-amber-700"
+                }`}
+              >
                 {stripeMode} mode
-              </Badge>
-            </p>
+              </span>
+            </StatusFeedback>
           )}
-          {stripeError && <p className="text-sm text-red-500">{stripeError}</p>}
+          <StatusFeedback status={stepStatus.stripe} errorMessage={stripeError} />
         </CardContent>
       </Card>
     );
   }
 
   function renderStep5() {
+    const passwordsMatch = adminPassword === adminPasswordConfirm;
+    const showMismatch = adminPasswordConfirm.length > 0 && !passwordsMatch;
+
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Admin & Security</CardTitle>
-          <CardDescription>Set up admin access and cron authentication</CardDescription>
-        </CardHeader>
+        <StepHeader
+          stepIndex={4}
+          title="Admin & Security"
+          description="Set up admin access and cron authentication"
+        />
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="adminPassword">Admin Password</Label>
-            <Input
-              id="adminPassword"
-              type="password"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              placeholder="Choose a strong password"
-            />
+            <div className="relative">
+              <Input
+                id="adminPassword"
+                type={showAdminPassword ? "text" : "password"}
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="Choose a strong password"
+                className="pr-9"
+              />
+              <button
+                type="button"
+                onClick={() => setShowAdminPassword((v) => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showAdminPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
             <p className="text-xs text-muted-foreground">
               Used to access the admin panel at /admin
             </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="adminPasswordConfirm">Confirm Password</Label>
+            <div className="relative">
+              <Input
+                id="adminPasswordConfirm"
+                type={showAdminPassword ? "text" : "password"}
+                value={adminPasswordConfirm}
+                onChange={(e) => setAdminPasswordConfirm(e.target.value)}
+                placeholder="Re-enter your password"
+                className={`pr-9 ${showMismatch ? "border-rose-300 ring-2 ring-rose-100" : ""}`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowAdminPassword((v) => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showAdminPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+            {showMismatch && (
+              <p className="text-xs text-rose-500">Passwords do not match</p>
+            )}
+            {adminPasswordConfirm.length > 0 && passwordsMatch && (
+              <p className="flex items-center gap-1 text-xs text-emerald-600">
+                <CheckCircle2 className="size-3" />
+                Passwords match
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="cronSecret">Cron Secret</Label>
@@ -598,47 +802,44 @@ export default function SetupPage() {
   function renderStep6() {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Save &amp; Import</CardTitle>
-          <CardDescription>Review your configuration and import products</CardDescription>
-        </CardHeader>
+        <StepHeader
+          stepIndex={5}
+          title="Save & Launch"
+          description="Review your configuration and import products"
+        />
         <CardContent className="space-y-6">
           {/* Summary */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium">Configuration Summary</h3>
-            <div className="rounded-lg bg-muted p-4 text-sm space-y-2">
-              <div className="flex justify-between">
+            <div className="divide-y rounded-lg border text-sm">
+              <div className="flex items-center justify-between px-4 py-3">
                 <span className="text-muted-foreground">Store</span>
-                <span>{storeName} ({currency})</span>
+                <span className="font-medium">{storeName} ({currency})</span>
               </div>
-              <Separator />
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between px-4 py-3">
                 <span className="text-muted-foreground">WooCommerce</span>
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-2 font-medium">
                   {wordpressUrl || "Not set"}
                   <StatusIcon status={stepStatus.woocommerce} />
                 </span>
               </div>
-              <Separator />
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between px-4 py-3">
                 <span className="text-muted-foreground">Supabase</span>
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-2 font-medium">
                   {supabaseUrl ? new URL(supabaseUrl).hostname : "Not set"}
                   <StatusIcon status={stepStatus.supabase} />
                 </span>
               </div>
-              <Separator />
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between px-4 py-3">
                 <span className="text-muted-foreground">Stripe</span>
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-2 font-medium">
                   {stripeMode ? `${stripeMode} mode` : "Not tested"}
                   <StatusIcon status={stepStatus.stripe} />
                 </span>
               </div>
-              <Separator />
-              <div className="flex justify-between">
+              <div className="flex items-center justify-between px-4 py-3">
                 <span className="text-muted-foreground">Admin</span>
-                <span>{adminPassword ? "Password set" : "Not set"}</span>
+                <span className="font-medium">{adminPassword ? "Password set" : "Not set"}</span>
               </div>
             </div>
           </div>
@@ -646,17 +847,27 @@ export default function SetupPage() {
           {/* Save Button */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium">1. Save Configuration</h3>
-            <Button onClick={saveConfig} disabled={saving || saved}>
+            <Button
+              onClick={saveConfig}
+              disabled={saving || saved}
+              className={saved ? "" : "bg-sky-500 text-white hover:bg-sky-600"}
+            >
               {saving && <Loader2 className="size-4 animate-spin" />}
-              {saved ? "Configuration Saved" : "Save to .env.local"}
+              {saved ? (
+                <>
+                  <CheckCircle2 className="size-4" />
+                  Configuration Saved
+                </>
+              ) : (
+                "Save to .env.local"
+              )}
             </Button>
             {saved && (
-              <p className="text-sm text-green-600 flex items-center gap-1">
-                <CheckCircle2 className="size-4" />
-                Configuration saved to .env.local
-              </p>
+              <StatusFeedback status="success" successMessage="Configuration saved to .env.local" />
             )}
-            {saveError && <p className="text-sm text-red-500">{saveError}</p>}
+            {saveError && (
+              <StatusFeedback status="error" errorMessage={saveError} />
+            )}
           </div>
 
           {/* Import Button */}
@@ -669,57 +880,108 @@ export default function SetupPage() {
               <Button
                 onClick={importProducts}
                 disabled={importing || !!importResult}
+                className={importResult ? "" : "bg-sky-500 text-white hover:bg-sky-600"}
               >
                 {importing && <Loader2 className="size-4 animate-spin" />}
-                {importResult ? "Import Complete" : importing ? "Importing..." : "Import Products"}
+                {importResult ? (
+                  <>
+                    <CheckCircle2 className="size-4" />
+                    Import Complete
+                  </>
+                ) : importing ? (
+                  "Importing..."
+                ) : (
+                  "Import Products"
+                )}
               </Button>
               {importing && (
-                <p className="text-sm text-muted-foreground">
-                  Syncing products from WooCommerce... This may take a moment.
-                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>
+                      {importProgress?.phase === "fetching"
+                        ? "Fetching products from WooCommerce..."
+                        : importProgress?.phase === "images"
+                          ? "Downloading images to Supabase Storage..."
+                          : importProgress?.phase === "writing"
+                            ? "Writing to database..."
+                            : "Starting import..."}
+                    </span>
+                    {importProgress && importProgress.total > 0 && (
+                      <span className="tabular-nums font-medium">
+                        {importProgress.synced} / {importProgress.total}
+                      </span>
+                    )}
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full bg-sky-500 transition-all duration-500 ${
+                        importProgress?.phase === "images" || importProgress?.phase === "writing"
+                          ? "animate-pulse"
+                          : ""
+                      }`}
+                      style={{
+                        width:
+                          importProgress?.phase === "writing"
+                            ? "90%"
+                            : importProgress?.phase === "images"
+                              ? "70%"
+                              : importProgress?.total
+                                ? `${Math.min(60, (importProgress.synced / importProgress.total) * 60)}%`
+                                : "15%",
+                      }}
+                    />
+                  </div>
+                </div>
               )}
               {importResult && (
-                <p className="text-sm text-green-600 flex items-center gap-1">
-                  <CheckCircle2 className="size-4" />
-                  Successfully synced {importResult.synced} product{importResult.synced !== 1 ? "s" : ""}.
-                </p>
+                <StatusFeedback
+                  status="success"
+                  successMessage={`Successfully synced ${importResult.synced} product${importResult.synced !== 1 ? "s" : ""}.`}
+                />
               )}
-              {importError && <p className="text-sm text-red-500">{importError}</p>}
+              {importError && (
+                <StatusFeedback status="error" errorMessage={importError} />
+              )}
             </div>
           )}
 
           {/* Success state */}
           {importResult && (
             <div className="space-y-4">
-              <Separator />
-              <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950">
-                <h3 className="text-sm font-medium text-green-800 dark:text-green-200">
-                  Setup Complete!
-                </h3>
-                <p className="mt-1 text-sm text-green-700 dark:text-green-300">
-                  Your store is configured and products are synced.
-                </p>
-                <div className="mt-3 flex gap-2">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-full bg-emerald-100">
+                    <CheckCircle2 className="size-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-emerald-800">Setup Complete!</h3>
+                    <p className="text-sm text-emerald-600">
+                      Your store is configured and products are synced.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => window.location.href = "/"}
+                    onClick={() => (window.location.href = "/")}
                   >
                     Visit Store
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => window.location.href = "/admin"}
+                    onClick={() => (window.location.href = "/admin")}
                   >
                     Admin Panel
                   </Button>
                 </div>
               </div>
-              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950">
-                <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  <strong>Important:</strong> Restart your dev server for environment variable changes to take effect.
-                  In production, redeploy your application.
+              <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+                <p className="text-sm text-amber-700">
+                  <strong>Important:</strong> Restart your dev server for environment variable changes
+                  to take effect. In production, redeploy your application.
                 </p>
               </div>
             </div>
@@ -733,7 +995,7 @@ export default function SetupPage() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-2xl px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Store Setup</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Store Setup</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Configure your headless WooCommerce storefront
           </p>
@@ -760,7 +1022,8 @@ export default function SetupPage() {
           </Button>
           <Button
             onClick={() => setStep((s) => s + 1)}
-            disabled={step === TOTAL_STEPS}
+            disabled={step === TOTAL_STEPS || (step === 5 && (!adminPassword || adminPassword !== adminPasswordConfirm))}
+            className="bg-sky-500 text-white hover:bg-sky-600"
           >
             Next
             <ArrowRight className="size-4" />

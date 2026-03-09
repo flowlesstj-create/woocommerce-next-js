@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
     if (error) {
       // If the error is about the table not existing, the connection works but schema is missing
-      if (error.message.includes("does not exist") || error.code === "42P01") {
+      if (error.message.includes("does not exist") || error.message.includes("Could not find") || error.code === "42P01") {
         return NextResponse.json({ ok: true, hasSchema: false });
       }
       return NextResponse.json(

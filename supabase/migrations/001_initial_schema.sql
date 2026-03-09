@@ -3,6 +3,7 @@ create table products (
   id integer primary key,
   name text not null,
   slug text unique not null,
+  status text default 'publish',
   type text default 'simple',
   description text,
   short_description text,
@@ -59,7 +60,9 @@ create table sync_state (
   products_synced integer default 0,
   errors text,
   started_at timestamptz,
-  completed_at timestamptz
+  completed_at timestamptz,
+  products_total integer default 0,
+  sync_phase text check (sync_phase in ('fetching', 'images', 'writing'))
 );
 
 -- Insert initial sync state row
@@ -77,3 +80,33 @@ create index idx_product_categories_category_id on product_categories(category_i
 alter table products add column fts tsvector
   generated always as (to_tsvector('english', coalesce(name, '') || ' ' || coalesce(short_description, ''))) stored;
 create index idx_products_fts on products using gin(fts);
+
+-- Key-value settings (AI config, etc.)
+create table settings (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz default now()
+);
+
+-- Product SEO metadata (AI-generated)
+create table product_seo (
+  product_id integer primary key references products(id) on delete cascade,
+  meta_title text,
+  meta_description text,
+  focus_keyword text,
+  og_title text,
+  og_description text,
+  image_alt_texts jsonb default '[]',
+  generated_at timestamptz default now(),
+  generated_by text
+);
+
+-- Storage bucket for product images (synced from WooCommerce)
+insert into storage.buckets (id, name, public)
+  values ('product-images', 'product-images', true)
+  on conflict (id) do nothing;
+
+-- Allow public read access to product images
+create policy "Public read access"
+  on storage.objects for select
+  using (bucket_id = 'product-images');
