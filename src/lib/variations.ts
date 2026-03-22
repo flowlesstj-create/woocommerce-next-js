@@ -1,5 +1,4 @@
-import { supabaseAdmin } from "./supabase";
-import { supabase } from "./supabase";
+import { getSupabase, getSupabaseAdmin } from "./supabase";
 import { getProductVariations } from "./woocommerce";
 import type { ProductVariation } from "./types";
 
@@ -8,7 +7,7 @@ const CACHE_TTL_MINUTES = 5;
 // Get variations — returns cached data immediately, refreshes in background if stale
 export async function getCachedVariations(productId: number): Promise<ProductVariation[]> {
   // Try cache first
-  const { data: cached } = await supabase
+  const { data: cached } = await getSupabase()
     .from("product_variations")
     .select("*")
     .eq("product_id", productId)
@@ -24,7 +23,9 @@ export async function getCachedVariations(productId: number): Promise<ProductVar
   // If we have stale data, return it and refresh in background
   if (cached?.length && isStale) {
     // Fire and forget — refresh in background
-    refreshVariations(productId).catch(() => {});
+    refreshVariations(productId).catch((err) => {
+      console.error(`[variations] Background refresh failed for product ${productId}:`, err);
+    });
     return cached as ProductVariation[];
   }
 
@@ -56,7 +57,7 @@ async function refreshVariations(productId: number): Promise<ProductVariation[]>
   }));
 
   if (rows.length) {
-    await supabaseAdmin.from("product_variations").upsert(rows, { onConflict: "id" });
+    await admin.from("product_variations").upsert(rows, { onConflict: "id" });
   }
 
   return rows as ProductVariation[];

@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 interface ModelInfo {
   id: string;
@@ -36,43 +37,84 @@ function formatModelName(id: string, provider: string): string {
 }
 
 async function fetchOpenAIModels(apiKey: string): Promise<ModelInfo[]> {
-  const res = await fetch("https://api.openai.com/v1/models", {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  if (!res.ok) throw new Error(`OpenAI API error: ${res.status}`);
-  const data = await res.json();
-  return filterModels(data.data || [], "openai");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch("https://api.openai.com/v1/models", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`OpenAI API error: ${res.status}`);
+    const data = await res.json();
+    return filterModels(data.data || [], "openai");
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function fetchAnthropicModels(apiKey: string): Promise<ModelInfo[]> {
-  const res = await fetch("https://api.anthropic.com/v1/models", {
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-  });
-  if (!res.ok) throw new Error(`Anthropic API error: ${res.status}`);
-  const data = await res.json();
-  return filterModels(data.data || [], "anthropic");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/models", {
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Anthropic API error: ${res.status}`);
+    const data = await res.json();
+    return filterModels(data.data || [], "anthropic");
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function fetchDeepSeekModels(apiKey: string): Promise<ModelInfo[]> {
-  const res = await fetch("https://api.deepseek.com/v1/models", {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  if (!res.ok) throw new Error(`DeepSeek API error: ${res.status}`);
-  const data = await res.json();
-  return filterModels(data.data || [], "deepseek");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch("https://api.deepseek.com/v1/models", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`DeepSeek API error: ${res.status}`);
+    const data = await res.json();
+    return filterModels(data.data || [], "deepseek");
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-export async function POST(request: Request) {
-  try {
-    const { provider, apiKey } = await request.json();
+function verifyAdminSession(): boolean {
+  const secret = process.env.ADMIN_PASSWORD || "";
+  const token = cookies().get("admin_session")?.value;
+  if (!token) return false;
+  const [nonce, sig] = token.split(".");
+  if (!nonce || !sig) return false;
+  const expected = require("crypto").createHmac("sha256", secret).update(nonce).digest("hex");
+  return sig === expected;
+}
 
-    if (!provider || !apiKey) {
-      return NextResponse.json({ error: "Provider and API key required" }, { status: 400 });
+export async function POST(request: NextRequest) {
+  try {
+    // Verify admin authentication via session cookie
+    if (!verifyAdminSession()) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { provider, apiKey } = await request.json();
+
+    // Validate provider against allowed values
+    const allowedProviders = ["openai", "anthropic", "deepseek"];
+    if (!allowedProviders.includes(provider)) {
+      return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
+    }
+
+    if (!apiKey) {
+      return NextResponse.json({ error: "API key required" }, { status: 400 });
+    }
     let models: ModelInfo[];
     switch (provider) {
       case "openai":

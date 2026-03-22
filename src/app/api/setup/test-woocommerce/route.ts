@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       const text = await res.text();
       return NextResponse.json(
         { ok: false, error: `WooCommerce API returned ${res.status}: ${text.slice(0, 200)}` },
-        { status: 200 }
+        { status: res.status }
       );
     }
 
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }

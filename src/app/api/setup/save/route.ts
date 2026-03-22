@@ -4,7 +4,37 @@ import { join } from "path";
 
 export async function POST(request: Request) {
   try {
+    // Check if .env.local already exists - if so, require admin auth
+    const { existsSync } = await import("fs");
+    const envPath = join(process.cwd(), ".env.local");
+    if (existsSync(envPath)) {
+      const { cookies } = await import("next/headers");
+      const { createHmac } = await import("crypto");
+      const cookieStore = await cookies();
+      const token = cookieStore.get("admin_session")?.value;
+      if (!token) {
+        return NextResponse.json({ ok: false, error: "Unauthorized - admin authentication required" }, { status: 401 });
+      }
+      const [nonce, sig] = token.split(".");
+      const secret = process.env.ADMIN_PASSWORD || "";
+      const expected = createHmac("sha256", secret).update(nonce).digest("hex");
+      if (sig !== expected) {
+        return NextResponse.json({ ok: false, error: "Unauthorized - invalid session" }, { status: 401 });
+      }
+    }
     const body = await request.json();
+
+    // Validate required fields
+    const requiredFields = [
+      "storeName", "wordpressUrl", "wcConsumerKey", "wcConsumerSecret",
+      "supabaseUrl", "supabaseAnonKey", "supabaseServiceRoleKey",
+      "stripePublishableKey", "stripeSecretKey", "adminPassword", "cronSecret"
+    ];
+    for (const field of requiredFields) {
+      if (!body[field] || typeof body[field] !== "string") {
+        return NextResponse.json({ ok: false, error: `Missing required field: ${field}` }, { status: 400 });
+      }
+    }
 
     const {
       storeName,
@@ -23,6 +53,7 @@ export async function POST(request: Request) {
       stripeWebhookSecret,
       adminPassword,
       cronSecret,
+      hideOutOfStock,
     } = body;
 
     const envContent = `# Store
@@ -31,7 +62,7 @@ NEXT_PUBLIC_STORE_DESCRIPTION=${storeDescription}
 NEXT_PUBLIC_CURRENCY=${currency}
 NEXT_PUBLIC_CURRENCY_SYMBOL=${currencySymbol}
 NEXT_PUBLIC_LOCALE=${locale}
-NEXT_PUBLIC_HIDE_OUT_OF_STOCK=false
+NEXT_PUBLIC_HIDE_OUT_OF_STOCK=${hideOutOfStock === "true" ? "true" : "false"}
 
 # WooCommerce
 NEXT_PUBLIC_WORDPRESS_URL=${wordpressUrl}

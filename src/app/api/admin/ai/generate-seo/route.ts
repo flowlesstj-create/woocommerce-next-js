@@ -128,7 +128,29 @@ function parseResponse(raw: string) {
   return JSON.parse(cleaned);
 }
 
+import { cookies } from "next/headers";
+
+function verifyAdminSession(): boolean {
+  const secret = process.env.ADMIN_PASSWORD || "";
+  const token = cookies().get("admin_session")?.value;
+  if (!token) return false;
+  const [nonce, sig] = token.split(".");
+  if (!nonce || !sig) return false;
+  const expected = createHmac("sha256", secret).update(nonce).digest("hex");
+  return sig === expected;
+}
+
+function createHmac(algorithm: string, key: string) {
+  // Use node:crypto if available, otherwise fallback
+  const crypto = require("node:crypto");
+  return crypto.createHmac(algorithm, key);
+}
+
 export async function POST(request: Request) {
+  // Verify admin authentication using existing cookie-based session
+  if (!verifyAdminSession()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { productIds } = await request.json();
 

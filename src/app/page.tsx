@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { escapeJsonLdValue } from "@/lib/sanitize";
 import { queryProducts } from "@/lib/products";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
@@ -8,14 +9,14 @@ function HomepageJsonLd() {
   const website = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: storeConfig.name,
+    name: escapeJsonLdValue(storeConfig.name),
     url: storeConfig.url,
-    description: storeConfig.description,
+    description: escapeJsonLdValue(storeConfig.description),
     potentialAction: {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${storeConfig.url}/product?search={search_term_string}`,
+        urlTemplate: `${escapeJsonLdValue(storeConfig.url)}/product?search={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
@@ -24,8 +25,8 @@ function HomepageJsonLd() {
   const organization = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: storeConfig.name,
-    url: storeConfig.url,
+    name: escapeJsonLdValue(storeConfig.name),
+    url: escapeJsonLdValue(storeConfig.url),
   };
 
   return (

@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       }))
     );
 
-    const sessionParams: Record<string, unknown> = {
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       line_items,
       success_url: `${origin}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       sessionParams.discounts = discounts;
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams as any);
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
