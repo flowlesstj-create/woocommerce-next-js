@@ -1,7 +1,13 @@
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { storeConfig } from "../../store.config";
 
 export function Footer() {
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
   return (
     <footer className="border-t mt-16">
       <div className="container mx-auto px-4 py-12">
@@ -37,7 +43,7 @@ export function Footer() {
           </div>
         </div>
         <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} {storeConfig.name}. All rights reserved.</p>
+          <p>&copy; {year} {storeConfig.name}. All rights reserved.</p>
         </div>
       </div>
     </footer>
