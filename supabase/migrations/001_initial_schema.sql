@@ -1,3 +1,12 @@
+-- Enable Row Level Security
+alter table products enable row level security;
+alter table product_variations enable row level security;
+alter table product_attributes enable row level security;
+alter table product_categories enable row level security;
+alter table sync_state enable row level security;
+alter table settings enable row level security;
+alter table product_seo enable row level security;
+
 -- Products table (synced from WooCommerce)
 create table products (
   id integer primary key,
@@ -16,6 +25,8 @@ create table products (
   categories jsonb default '[]',
   wc_updated_at timestamptz,
   synced_at timestamptz default now()
+  check (images is null or jsonb_typeof(images) = 'array'),
+  check (categories is null or jsonb_typeof(categories) = 'array')
 );
 
 -- Product variations (cached from WC API, refreshed on demand)
@@ -31,6 +42,7 @@ create table product_variations (
   attributes jsonb default '[]',
   image jsonb,
   cached_at timestamptz default now()
+  check (attributes is null or jsonb_typeof(attributes) = 'array')
 );
 
 create index idx_product_variations_product_id on product_variations(product_id);
@@ -42,6 +54,8 @@ create table product_attributes (
   attribute_name text not null,
   attribute_value text not null
 );
+
+create unique index idx_product_attributes_unique on product_attributes(product_id, attribute_name, attribute_value);
 
 -- Product categories (flattened for filtering)
 create table product_categories (
