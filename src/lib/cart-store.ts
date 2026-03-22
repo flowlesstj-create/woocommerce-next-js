@@ -11,8 +11,8 @@ export interface CartItem {
 interface CartStore {
   items: CartItem[];
   addItem: (product: Product, quantity?: number, variationId?: number) => void;
-  removeItem: (productId: number) => void;
-  updateQuantity: (productId: number, quantity: number) => void;
+  removeItem: (productId: number, variationId?: number) => void;
+  updateQuantity: (productId: number, quantity: number, variationId?: number) => void;
   clearCart: () => void;
   total: () => number;
   itemCount: () => number;
@@ -42,9 +42,13 @@ export const useCartStore = create<CartStore>()(
         });
       },
 
-      removeItem: (productId) => {
+      removeItem: (productId, variationId) => {
         set((state) => ({
-          items: state.items.filter((i) => i.product.id !== productId),
+          items: state.items.filter(
+            (i) =>
+              i.product.id !== productId ||
+              (variationId !== undefined && i.variationId !== variationId)
+          ),
         }));
       },
 
