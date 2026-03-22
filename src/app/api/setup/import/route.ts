@@ -4,6 +4,14 @@ import type { WCProduct } from "@/lib/types";
 import { ensureImageBucket, syncProductImages } from "@/lib/image-sync";
 
 export async function POST(request: Request) {
+  // Verify admin session or cron secret before processing sensitive credentials
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  const adminSession = request.headers.get("x-admin-session");
+
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}` && !adminSession) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const {
