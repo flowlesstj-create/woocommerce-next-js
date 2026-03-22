@@ -33,6 +33,7 @@ export const storeConfig = {
   // --------------------------------------------------------------------------
   // Site URL (required for canonical URLs, sitemaps, JSON-LD)
   // --------------------------------------------------------------------------
+  // WARNING: Change NEXT_PUBLIC_SITE_URL in production to avoid broken canonical URLs and sitemaps
   url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
 
   // --------------------------------------------------------------------------
@@ -40,7 +41,7 @@ export const storeConfig = {
   // --------------------------------------------------------------------------
   // How often the cron job syncs products from WooCommerce (in minutes).
   // Set up a cron job hitting /api/cron/sync with your CRON_SECRET.
-  syncIntervalMinutes: 5,
+  syncIntervalMinutes: parseInt(process.env.NEXT_PUBLIC_SYNC_INTERVAL_MINUTES || "5"),
 };
 
 // ============================================================================
