@@ -8,33 +8,29 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 export async function syncProducts(): Promise<{ synced: number; errors: string | null }> {
   const admin = getSupabaseAdmin();
 
-  // Check if already syncing
-  const { data: state } = await admin
-    .from("sync_state")
-    .select("*")
-    .eq("id", 1)
-    .single();
-
-  if (state?.status === "syncing") {
-    return { synced: 0, errors: "Sync already in progress" };
-  }
-
-  // Ensure image bucket exists
-  await ensureImageBucket(admin);
-
-  // Mark as syncing
-  const syncStartedAt = new Date().toISOString();
-  await admin
+  // Use atomic update to prevent race conditions
+  const { data: updatedState, error } = await admin
     .from("sync_state")
     .update({
       status: "syncing",
       sync_phase: "fetching",
       products_synced: 0,
       products_total: 0,
-      started_at: syncStartedAt,
+      started_at: new Date().toISOString(),
       errors: null,
     })
-    .eq("id", 1);
+    .eq("id", 1)
+    .eq("status", "idle")
+    .select()
+    .single();
+
+  // If no row was updated, another sync is already in progress
+  if (error || !updatedState) {
+    return { synced: 0, errors: "Sync already in progress" };
+  }
+
+  // Ensure image bucket exists
+  await ensureImageBucket(admin);
 
   let totalSynced = 0;
   let syncError: string | null = null;
